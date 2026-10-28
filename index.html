@@ -1,0 +1,79 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Consola Cubo LED</title>
+<style>
+body{font-family:sans-serif;background:#121212;color:#e0e0e0;margin:0;padding:15px;display:flex;justify-content:center;align-items:center;min-height:100vh}
+.panel{width:100%;max-width:360px;background:#181818;padding:25px;border-radius:20px;border:1px solid #2a2a2a}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:1px solid #2a2a2a;padding-bottom:15px}
+h1{margin:0;font-size:16px;color:#888}h1 span{color:#fff}
+.switch-container{display:flex;align-items:center;gap:10px;font-size:12px;color:#888;font-weight:600}
+.toggle-switch{width:44px;height:24px;background:#333;border-radius:12px;cursor:pointer;position:relative}
+.toggle-knob{width:20px;height:20px;background:#fff;border-radius:50%;position:absolute;top:2px;left:2px;transition:0.3s}
+.toggle-switch.on{background:#ff2a7a}.toggle-switch.on .toggle-knob{transform:translateX(20px)}
+.grid-efectos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.btn{background:#242424;border:1px solid #333;border-radius:12px;padding:15px 5px;font-size:11px;font-weight:700;color:#aaa;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.btn.activo{background:#2a2a2a;border-color:#ff2a7a;color:#fff;box-shadow:0 0 10px rgba(255,42,122,0.4)}
+.led-indicador{width:6px;height:6px;border-radius:50%;background:#111}
+.btn.activo .led-indicador{background:#ff2a7a;box-shadow:0 0 8px #ff2a7a}
+#btn-0{grid-column:span 2;background:#1a1a1a;color:#666}#btn-0.activo{border-color:#e74c3c;color:#fff}#btn-0.activo .led-indicador{background:#e74c3c}
+.seccion-texto{background:#1e1e1e;border-radius:12px;padding:12px;border:1px solid #2a2a2a}
+input[type=text]{width:calc(100% - 24px);padding:10px 12px;font-size:13px;border-radius:8px;border:1px solid #333;background:#121212;color:#fff;margin-bottom:10px;outline:none}
+#btn-11{width:100%;flex-direction:row;justify-content:center;padding:12px}
+.titulo{display:flex;flex-direction:column;gap:6px}
+.badge{display:flex;align-items:center;gap:6px;align-self:flex-start;font-size:10px;font-weight:600;color:#888;background:#1e1e1e;border:1px solid #2a2a2a;border-radius:10px;padding:3px 8px;transition:0.3s}
+.badge i{width:6px;height:6px;border-radius:50%;background:#555}
+.badge.local i{background:#2ecc71;box-shadow:0 0 6px #2ecc71}
+.badge.conectando i{background:#f39c12;box-shadow:0 0 6px #f39c12}
+.badge.nube i{background:#3498db;box-shadow:0 0 6px #3498db}
+.badge.caida i{background:#e74c3c;box-shadow:0 0 6px #e74c3c}
+.badge.aviso{border-color:#e74c3c;color:#fff}
+</style></head>
+<body><div class="panel"><div class="header"><div class="titulo"><h1>Cubo <span>8x8x8</span></h1><div id="badge" class="badge local"><i></i><span id="badge-txt">Red local</span></div></div><div class="switch-container">BUCLE<div id="switch-bucle" class="toggle-switch on" onclick="toggleBucle()"><div class="toggle-knob"></div></div></div></div>
+<div class="grid-efectos">
+<button id="btn-1" class="btn" onclick="setEfecto(1)"><div class="led-indicador"></div>LLUVIA 3D</button>
+<button id="btn-2" class="btn" onclick="setEfecto(2)"><div class="led-indicador"></div>CAJAS EXPANSIVAS</button>
+<button id="btn-3" class="btn" onclick="setEfecto(3)"><div class="led-indicador"></div>ONDA SENOIDAL</button>
+<button id="btn-4" class="btn" onclick="setEfecto(4)"><div class="led-indicador"></div>FUEGOS ARTIFICIALES</button>
+<button id="btn-5" class="btn" onclick="setEfecto(5)"><div class="led-indicador"></div>VIAJE HIPERESPACIAL</button>
+<button id="btn-6" class="btn" onclick="setEfecto(6)"><div class="led-indicador"></div>CUBO REBOTANDO</button>
+<button id="btn-7" class="btn" onclick="setEfecto(7)"><div class="led-indicador"></div>HÉLICE ADN</button>
+<button id="btn-8" class="btn" onclick="setEfecto(8)"><div class="led-indicador"></div>TORMENTA GLITTER</button>
+<button id="btn-9" class="btn" onclick="setEfecto(9)"><div class="led-indicador"></div>PLANO INCLINADO</button>
+<button id="btn-10" class="btn" onclick="setEfecto(10)"><div class="led-indicador"></div>ESCÁNER LÁSER</button>
+<button id="btn-0" class="btn activo" onclick="setEfecto(0)"><div class="led-indicador"></div>APAGAR SISTEMA</button>
+</div>
+<div class="seccion-texto"><input type="text" id="textoInput" placeholder="MENSAJE..." maxlength="20"><button id="btn-11" class="btn" onclick="enviarTexto()"><div class="led-indicador"></div>DESLIZAR TEXTO</button></div></div>
+<script>
+// Desde el cubo (http) manda por la red local; desde internet (https) manda por MQTT
+const MODO_LOCAL=(location.protocol==='http:');
+const MQTT_URL='wss://ofea77ec.ala.us-east-1.emqxsl.com:8084/mqtt',MQTT_USUARIO='web-cubo',MQTT_CLAVE='vicecitynew2026';
+let clienteMqtt=null,enlaceOk=false,cuboEnLinea=false,ultimoEstado=0;
+let esBucle=true;
+function mostrarEnlace(clase,texto){document.getElementById('badge').className='badge '+clase;document.getElementById('badge-txt').textContent=texto;}
+function estadoNube(){if(!enlaceOk)return;if(cuboEnLinea)mostrarEnlace('nube','Nube MQTT');else mostrarEnlace('sincubo','Nube MQTT · cubo sin conexión');}
+function conectarNube(){
+mostrarEnlace('conectando','Conectando a la nube...');
+let s=document.createElement('script');
+s.src='https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js';
+s.onerror=()=>mostrarEnlace('caida','Nube caída');
+s.onload=()=>{
+clienteMqtt=mqtt.connect(MQTT_URL,{username:MQTT_USUARIO,password:MQTT_CLAVE,clientId:'web-'+Math.random().toString(16).slice(2,10),reconnectPeriod:3000,connectTimeout:8000});
+clienteMqtt.on('connect',()=>{enlaceOk=true;clienteMqtt.subscribe('cubo/estado');estadoNube();});
+clienteMqtt.on('reconnect',()=>{enlaceOk=false;mostrarEnlace('conectando','Conectando a la nube...');});
+clienteMqtt.on('close',()=>{enlaceOk=false;mostrarEnlace('caida','Nube caída');});
+clienteMqtt.on('error',e=>{enlaceOk=false;mostrarEnlace('caida','Nube caída');console.log('MQTT:',e.message);});
+clienteMqtt.on('message',(t,m)=>{try{cuboEnLinea=(JSON.parse(m.toString()).conectado===true);ultimoEstado=Date.now();estadoNube();}catch(e){}});
+};
+document.head.appendChild(s);
+setInterval(()=>{if(cuboEnLinea&&Date.now()-ultimoEstado>7000){cuboEnLinea=false;estadoNube();}},2000);
+}
+function enviar(ruta,datos){
+if(MODO_LOCAL){fetch(ruta).catch(e=>{});return true;}
+if(!enlaceOk){let b=document.getElementById('badge');b.classList.add('aviso');setTimeout(()=>b.classList.remove('aviso'),800);return false;}
+clienteMqtt.publish('cubo/cmd',JSON.stringify(datos),{qos:1,retain:false});
+return true;
+}
+function toggleBucle(){esBucle=!esBucle;document.getElementById('switch-bucle').classList.toggle('on',esBucle);setEfecto(0);}
+function resetearBotones(){for(let i=0;i<=11;i++){let b=document.getElementById('btn-'+i);if(b)b.classList.remove('activo');}}
+function setEfecto(id){if(!enviar('/efecto?id='+id+'&bucle='+esBucle,{efecto:id,bucle:esBucle}))return;resetearBotones();let b=document.getElementById('btn-'+id);if(b)b.classList.add('activo');}
+function enviarTexto(){var txt=document.getElementById('textoInput').value;if(txt!=""){if(!enviar('/texto?msg='+encodeURIComponent(txt)+'&bucle='+esBucle,{texto:txt,bucle:esBucle}))return;resetearBotones();document.getElementById('btn-11').classList.add('activo');}else{alert("Mensaje no válido");}}
+if(!MODO_LOCAL)conectarNube();
+</script></body></html>
